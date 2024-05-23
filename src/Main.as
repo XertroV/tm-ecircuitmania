@@ -1,43 +1,256 @@
+[Setting hidden]
+bool g_Window = false;
+
+
+const string PluginName = Meta::ExecutingPlugin().Name;
+const string MenuIconColor = "\\$4d8";
+const string PluginIcon = Icons::Circle + Icons::Upload;
+const string MenuTitle = MenuIconColor + PluginIcon + "\\$z " + PluginName;
+
+
+UI::Texture@ logo;
+
 void Main() {
-
+    yield();
+    @logo = UI::LoadTexture("logo.png");
 }
 
 
-void Render() {
-    // if (UI::Begin("Ecircuit Test")) {
-    //     if (UI::Button("Test req 1")) {
-    //         startnew(TestReq1);
-    //     }
-    //     if (UI::Button("Test req 1a")) {
-    //         startnew(TestReq1a);
-    //     }
-    //     if (UI::Button("Test req 2")) {
-    //         startnew(TestReq2);
-    //     }
-    // }
-    // UI::End();
+RaceMonitor@ g_monitor;
+bool IsEditor;
+bool IsPgLoaded;
+uint lastMapMwId = 0;
+string mapUid;
+bool MapLeftThisFrame = false;
+bool NewMapThisFrame = false;
+
+void RenderEarly() {
+    auto app = GetApp();
+    IsEditor = app.Editor !is null;
+    IsPgLoaded = !IsEditor && app.RootMap !is null && app.CurrentPlayground !is null;
+
+    if (IsPgLoaded) {
+        if (app.RootMap.Id.Value != lastMapMwId) {
+            MapLeftThisFrame = lastMapMwId > 0;
+            lastMapMwId = app.RootMap.Id.Value;
+            mapUid = app.RootMap.MapInfo.MapUid;
+            NewMapThisFrame = lastMapMwId > 0;
+        } else {
+            MapLeftThisFrame = false;
+            NewMapThisFrame = false;
+        }
+    } else {
+        MapLeftThisFrame = lastMapMwId > 0;
+        lastMapMwId = 0;
+        NewMapThisFrame = false;
+        mapUid = "";
+    }
+
+    if (g_monitor !is null) {
+        g_monitor.Update();
+    }
+}
+
+uint GetMapIdValue(CGameCtnChallenge@ map) {
+    if (map is null) return 0;
+    return map.Id.Value;
+}
+
+void RenderMenu() {
+    if (UI::MenuItem(MenuTitle, "", g_Window)) {
+        g_Window = !g_Window;
+    }
+}
+
+void RenderInterface() {
+    if (!g_Window) return;
+    auto app = GetApp();
+    UI::SetNextWindowSize(400, 300, UI::Cond::FirstUseEver);
+    if (UI::Begin(PluginName, g_Window)) {
+        DrawLogo();
+        UI::PushItemWidth(Math::Max(UI::GetContentRegionAvail().x * .3, 100));
+        if (!IsPgLoaded) {
+            DrawNoMap();
+        } else if (g_monitor is null) {
+            DrawNoMonitor();
+        } else {
+            g_monitor.DrawWindowInner();
+        }
+        UI::PopItemWidth();
+    }
+    UI::End();
+}
+
+void DrawLogo() {
+    if (logo is null) {
+        UI::Dummy(vec2(0, 60));
+    } else {
+        auto w = UI::GetContentRegionAvail().x;
+        auto size = vec2(180);
+        auto fullSize = logo.GetSize();
+        size.y = size.x * (fullSize.y / fullSize.x);
+        auto pl = (w - size.x) / 2.;
+        UI::Dummy(vec2(pl, 10));
+        UI::SameLine();
+        UI::Image(logo, size);
+    }
+}
+
+void DrawEditApiKey() {
+
+    // S_API_KEY = UI::InputText("API Key", S_API_KEY, UI::InputTextFlags::Password);
+}
+
+void DrawNoMap() {
+    UI::AlignTextToFramePadding();
+    UI::Text("No map loaded.");
+    if (g_monitor !is null) {
+        DrawStopMonitoringButton();
+    }
+}
+
+void DrawStopMonitoringButton() {
+    UI::Separator();
+    if (UI::Button("Stop Monitoring")) {
+        @g_monitor = null;
+    }
+}
+
+int m_CurrRound = 0;
+int m_CurrMap = 0;
+string m_matchId_apiKey;
+string matchId;
+string apiKey;
+bool validMIdApiKeyInput = false;
+string midApiKeyError = "Empty Input. Please paste Match ID & API Key";
+string last_matchId_apiKey;
+
+void DrawNoMonitor() {
+    UI::Text("Not currently monitoring.");
+    UI::Separator();
+    bool changed;
+    m_matchId_apiKey = UI::InputText("Paste Match ID & API Key", m_matchId_apiKey, changed, UI::InputTextFlags::Password);
+    bool useLast = false;
+    if (last_matchId_apiKey.Length > 0) {
+        UI::SameLine();
+        useLast = UI::Button("Use Last");
+    }
+    if (useLast) {
+        m_matchId_apiKey = last_matchId_apiKey;
+        changed = true;
+    }
+    if (changed) {
+        TryParseMIdApiKey();
+    }
+    if (!validMIdApiKeyInput) {
+        UI::TextWrapped("\\$f80 " + Icons::ExclamationTriangle + "\\$z " + midApiKeyError);
+    }
+    UI::Separator();
+    UI::TextWrapped("If you are starting monitoring in the middle of a round, you can specify the current round and map number to start from. Otherwise, put 0 if it's before or during warmup on 1st map.");
+    m_CurrRound = UI::InputInt("Current Round Number (0 for warmup)", m_CurrRound);
+    m_CurrMap = UI::InputInt("Current Map Number (0 for 1st map)", m_CurrMap);
+    UI::BeginDisabled(!validMIdApiKeyInput);
+    if (UI::Button("Start Monitoring")) {
+        TryParseMIdApiKey();
+        if (validMIdApiKeyInput) {
+            @g_monitor = RaceMonitor(matchId, apiKey, m_CurrRound, m_CurrMap);
+            m_CurrRound = 0;
+            m_CurrMap = 0;
+            last_matchId_apiKey = m_matchId_apiKey;
+            m_matchId_apiKey = "";
+            TryParseMIdApiKey();
+        } else {
+            NotifyWarning("Invalid Match ID & API Key input.");
+        }
+    }
+    UI::EndDisabled();
+}
+
+void TryParseMIdApiKey() {
+    auto parts = m_matchId_apiKey.Split("_");
+    if (parts.Length == 2) {
+        matchId = parts[0];
+        apiKey = parts[1];
+        validMIdApiKeyInput = true;
+        midApiKeyError = "";
+    } else {
+        validMIdApiKeyInput = false;
+        midApiKeyError = "Invalid input. Expected 1 underscore but found " + (int(parts.Length) - 1);
+    }
 }
 
 
 
-void TestReq1() {
-    auto finPl = MakePlayerFinishPayload("0782eabd-e9ce-473b-a293-c1dd846e749b", 12354, 7, 2, "4TN4MeQNwtr161g31CybCw9NKAa"+Time::Now);
-    AddRoundTimeReq("1705154400000x001", Json::Write(finPl));
+
+
+
+
+
+
+void Notify(const string &in msg) {
+    UI::ShowNotification(Meta::ExecutingPlugin().Name, msg);
+    trace("Notified: " + msg);
+}
+void Dev_Notify(const string &in msg) {
+#if DEV
+    UI::ShowNotification(Meta::ExecutingPlugin().Name, msg);
+    trace("Notified: " + msg);
+#endif
 }
 
-void TestReq1a() {
-    // {
-//     "ubisoftUid": "0782eabd-e9ce-473b-a293-c1dd846e749b",
-//     "finishTime": 68999,
-//     "trackNum": 1,
-//     "roundNum": 1,
-//     "mapId": "testId"
+void NotifySuccess(const string &in msg) {
+    UI::ShowNotification(Meta::ExecutingPlugin().Name, msg, vec4(.4, .7, .1, .3), 10000);
+    trace("Notified: " + msg);
+}
+
+void NotifyError(const string &in msg) {
+    warn(msg);
+    UI::ShowNotification(Meta::ExecutingPlugin().Name + ": Error", msg, vec4(.9, .3, .1, .3), 15000);
+}
+
+void NotifyWarning(const string &in msg) {
+    warn(msg);
+    UI::ShowNotification(Meta::ExecutingPlugin().Name + ": Warning", msg, vec4(.9, .6, .2, .3), 15000);
+}
+
+dictionary warnDebounce;
+void NotifyWarningDebounce(const string &in msg, uint ms) {
+    warn(msg);
+    bool showWarn = !warnDebounce.Exists(msg) || Time::Now - uint(warnDebounce[msg]) > ms;
+    if (showWarn) {
+        UI::ShowNotification(Meta::ExecutingPlugin().Name + ": Warning", msg, vec4(.9, .6, .2, .3), 15000);
+        warnDebounce[msg] = Time::Now;
+    }
+}
+
+
+
+
+void dev_warn(const string &in msg) {
+#if DEV
+    warn(msg);
+#endif
+}
+
+
+// void TestReq1() {
+//     auto finPl = MakePlayerFinishPayload("0782eabd-e9ce-473b-a293-c1dd846e749b", 12354, 7, 2, "4TN4MeQNwtr161g31CybCw9NKAa"+Time::Now);
+//     AddPlayerFinishReq("1705154400000x001", Json::Write(finPl));
 // }
-    auto finPl = MakePlayerFinishPayload("0782eabd-e9ce-473b-a293-c1dd846e749b", 68999, 1, 1, "testId+"+Time::Now);
-    AddRoundTimeReq("1705154400000x001", Json::Write(finPl));
-}
 
-void TestReq2() {
-    auto finPl = MakeRoundEndPayload({PlayerFinishData("6c51c127-a155-4d8b-8172-4508e5aec8e4", 1234, 1), PlayerFinishData("0782eabd-e9ce-473b-a293-c1dd846e749b", 12345, 2)}, 4, 5, "4TN4MeQNwtr161g31CybCw9NKAa"+Time::Now);
-    AddRoundTimeReq("1705154400000x001", Json::Write(finPl));
-}
+// void TestReq1a() {
+//     // {
+// //     "ubisoftUid": "0782eabd-e9ce-473b-a293-c1dd846e749b",
+// //     "finishTime": 68999,
+// //     "trackNum": 1,
+// //     "roundNum": 1,
+// //     "mapId": "testId"
+// // }
+//     auto finPl = MakePlayerFinishPayload("0782eabd-e9ce-473b-a293-c1dd846e749b", 68999, 1, 1, "testId+"+Time::Now);
+//     AddPlayerFinishReq("1705154400000x001", Json::Write(finPl));
+// }
+
+// void TestReq2() {
+//     auto finPl = MakeRoundEndPayload({PlayerFinishData("6c51c127-a155-4d8b-8172-4508e5aec8e4", 1234, 1), PlayerFinishData("0782eabd-e9ce-473b-a293-c1dd846e749b", 12345, 2)}, 4, 5, "4TN4MeQNwtr161g31CybCw9NKAa"+Time::Now);
+//     AddPlayerFinishReq("1705154400000x001", Json::Write(finPl));
+// }

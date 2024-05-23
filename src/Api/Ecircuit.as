@@ -13,7 +13,7 @@ class PlayerFinishData {
     string wsid;
     uint finishTime;
     uint position;
-    PlayerFinishData(const string &in wsid, uint finishTime, uint position) {
+    PlayerFinishData(const string &in wsid, int finishTime, int position) {
         this.wsid = wsid;
         this.finishTime = finishTime;
         this.position = position;
@@ -43,32 +43,47 @@ Json::Value@ MakeRoundEndPayload(array<PlayerFinishData@>@ players, uint trackNu
 const string URL_ADD_ROUND_TIME = "https://us-central1-fantasy-trackmania.cloudfunctions.net/match-addRoundTime?matchId=";
 const string URL_ADD_ROUND_FULL = "https://us-central1-fantasy-trackmania.cloudfunctions.net/match-addRound?matchId=";
 
-void AddRoundTimeReq(const string &in matchId, const string &in payload) {
-    MakeRequestEcircuit(URL_ADD_ROUND_TIME + matchId, payload);
+ECMResponse@ AddOnPlayerFinishReq(const string &in apiKey, const string &in matchId, const string &in payload) {
+    return MakeRequestEcircuit(apiKey, URL_ADD_ROUND_TIME + matchId, payload);
 }
 
-void AddRoundReq(const string &in matchId, const string &in payload) {
-    MakeRequestEcircuit(URL_ADD_ROUND_FULL + matchId, payload);
+ECMResponse@ AddOnEndRoundReq(const string &in apiKey, const string &in matchId, const string &in payload) {
+    return MakeRequestEcircuit(apiKey, URL_ADD_ROUND_FULL + matchId, payload);
 }
 
 
-void MakeRequestEcircuit(const string &in url, const string &in payload) {
+ECMResponse@ MakeRequestEcircuit(const string &in apiKey, const string &in url, const string &in payload) {
     Net::HttpRequest@ req = Net::HttpRequest();
     req.Method = Net::HttpMethod::Post;
     req.Url = url;
     print("Req: " + url);
     req.Body = payload;
     print("Payload: " + payload);
-    req.Headers["Authorization"] = S_API_KEY;
+    req.Headers["Authorization"] = apiKey;
     req.Headers["Content-Type"] = "application/json";
     req.Start();
     while (!req.Finished()) {
         yield();
     }
-    if (req.ResponseCode() != 200) {
-        print("Error: " + req.ResponseCode());
-        print("Response: " + req.String());
+    string msg = req.String();
+    int status = req.ResponseCode();
+    if (status < 200 || status >= 300) {
+        print("Status Code: " + status);
+        print("Error: " + msg);
+        return ECMResponse(false, status, msg);
     } else {
-        print("Success: " + req.String());
+        print("Success: " + msg);
+        return ECMResponse(true, status, msg);
+    }
+}
+
+class ECMResponse {
+    bool success;
+    int status;
+    string message;
+    ECMResponse(bool success, int status, const string &in message) {
+        this.success = success;
+        this.status = status;
+        this.message = message;
     }
 }

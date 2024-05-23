@@ -1,7 +1,7 @@
 [meta]
 name     = "ECM Match Data"
 author   = "XertroV"
-category = "Dev"
+category = "ECM"
 version  = "0.1.5"
 
 [script]
