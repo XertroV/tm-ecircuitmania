@@ -12,7 +12,6 @@ enum RaceState {
 
 class RaceMonitor {
     uint lastMapMwId = uint(-1);
-    protected CGameManiaPlanet@ app;
     int currRound = 0;
     int currMap = 0;
     bool KeepRunning = true;
@@ -21,7 +20,6 @@ class RaceMonitor {
     string apiKey;
 
     RaceMonitor(const string &in matchId, const string &in apiKey, int startRound = 0, int startMap = 0) {
-        @app = cast<CGameManiaPlanet>(GetApp());
         // startnew(CoroutineFunc(RunMonitor));
         currRound = startRound;
         currMap = startMap;
@@ -38,13 +36,6 @@ class RaceMonitor {
     }
 
     string[] finishedPlayers;
-
-    // protected void RunMonitor() {
-    //     while (KeepRunning) {
-    //         Update();
-    //         yield();
-    //     }
-    // }
 
     void ClearFinishedPlayers() {
         finishedPlayers.RemoveRange(0, finishedPlayers.Length);
@@ -84,6 +75,7 @@ class RaceMonitor {
         auto rd = MLFeed::GetRaceData_V4();
         if (rd.Rules_StartTime < 0 || (rd.Rules_EndTime > 0 && rd.Rules_StartTime >= rd.Rules_EndTime)) return RaceState::NoRound_or_Warmup;
         if (rd.WarmupActive) return RaceState::NoRound_or_Warmup;
+        auto app = cast<CGameManiaPlanet>(GetApp());
         auto seq = int(app.CurrentPlayground.GameTerminals[0].UISequence_Current);
         if (IsEndRoundUISeq(seq)) return RaceState::EndRound_or_Similar;
         if (IsPlayingUISeq(seq)) return RaceState::Active;
@@ -212,59 +204,6 @@ class RaceMonitor {
         }
         return MakeRoundEndPayload(players, currMap, currRound, mapUid);
     }
-
-
-    // protected void RunMap() {
-    //     // auto rd = MLFeed::GetRaceData_V4();
-    //     CSmArenaClient@ cp;
-    //     CGameTerminal@ gt;
-    //     int currSeq = -1;
-    //     while (KeepRunning && app.RootMap !is null && app.RootMap.Id.Value == lastMapMwId) {
-    //         yield();
-    //         WaitForPlayground();
-    //         WaitForPlayingSeq();
-    //         WaitForNoWarmup();
-    //         WaitForPlayingSeq();
-    //         RunMapRounds();
-
-    //         // if (rd.WarmupActive) continue;
-    //         // if (rd.Rules_StartTime < 0 || rd.Rules_StartTime > rd.Rules_EndTime) continue;
-    //         // if (cp.GameTerminals.Length == 0) continue;
-    //         // @gt = cp.GameTerminals[0];
-    //         // currSeq = int(gt.UISequence_Current);
-    //         // if (!PlayingUISeq(currSeq)) continue;
-    //     }
-    // }
-
-    // void WaitForPlayground() {
-    //     while (!IsPgLoaded) { yield(); }
-    // }
-
-    // void WaitForPlayingSeq() {
-    //     CSmArenaClient@ cp;
-    //     CGameTerminal@ gt;
-    //     int currSeq = -1;
-    //     while ((@cp = cast<CSmArenaClient>(app.CurrentPlayground)) !is null) {
-    //         yield();
-    //         if (cp.GameTerminals.Length == 0) continue;
-    //         @gt = cp.GameTerminals[0];
-    //         currSeq = int(gt.UISequence_Current);
-    //         if (IsPlayingUISeq(currSeq)) break;
-    //     }
-    // }
-
-    // void WaitForNoWarmup() {
-    //     auto rd = MLFeed::GetRaceData_V4();
-    //     while (rd.WarmupActive) { yield(); }
-    // }
-
-    // void RunMapRounds() {
-    //     while (IsPgLoaded && KeepRunning) {
-    //         if (currRound <= 0) currRound = 1;
-    //         if (currMap <= 0) currMap = 1;
-    //     }
-    // }
-
 
 
     void DrawWindowInner() {
