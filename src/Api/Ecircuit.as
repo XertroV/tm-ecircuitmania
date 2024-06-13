@@ -1,4 +1,4 @@
-Json::Value@ MakePlayerFinishPayload(const string &in wsid, uint finishTime, uint trackNum, uint roundNum, const string &in mapUid) {
+Json::Value@ MakePlayerFinishPayload(const string &in wsid, int finishTime, int trackNum, int roundNum, const string &in mapUid) {
     Json::Value@ payload = Json::Object();
     payload["ubisoftUid"] = wsid;
     payload["finishTime"] = finishTime;
@@ -11,8 +11,8 @@ Json::Value@ MakePlayerFinishPayload(const string &in wsid, uint finishTime, uin
 
 class PlayerFinishData {
     string wsid;
-    uint finishTime;
-    uint position;
+    int finishTime;
+    int position;
     PlayerFinishData(const string &in wsid, int finishTime, int position) {
         this.wsid = wsid;
         this.finishTime = finishTime;
@@ -21,7 +21,7 @@ class PlayerFinishData {
 }
 
 // for cup send -1 for trackNum b/c no reliable source. for rounds send the trackNum from parsing
-Json::Value@ MakeRoundEndPayload(array<PlayerFinishData@>@ players, uint trackNum, uint roundNum, const string &in mapUid) {
+Json::Value@ MakeRoundEndPayload(array<PlayerFinishData@>@ players, int trackNum, int roundNum, const string &in mapUid) {
     Json::Value@ payload = Json::Object();
     Json::Value@ playersArray = Json::Array();
     for (uint i = 0; i < players.Length; i++) {
