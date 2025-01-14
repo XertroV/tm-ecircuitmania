@@ -13,8 +13,15 @@ UI::Texture@ logo;
 void Main() {
     yield();
     @logo = UI::LoadTexture("logo.png");
+    startnew(UpdateEarlyCoro).WithRunContext(Meta::RunContext::AfterScripts);
 }
 
+void UpdateEarlyCoro() {
+    while (true) {
+        UpdateEarly();
+        yield();
+    }
+}
 
 RaceMonitor@ g_monitor;
 bool IsEditor;
@@ -24,7 +31,7 @@ string mapUid;
 bool MapLeftThisFrame = false;
 bool NewMapThisFrame = false;
 
-void RenderEarly() {
+void UpdateEarly() {
     auto app = GetApp();
     IsEditor = app.Editor !is null;
     IsPgLoaded = !IsEditor && app.RootMap !is null && app.CurrentPlayground !is null;

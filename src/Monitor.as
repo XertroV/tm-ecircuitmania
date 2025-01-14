@@ -35,22 +35,21 @@ class RaceMonitor {
         KeepRunning = false;
     }
 
-    string[] finishedPlayers;
+    array<const MLFeed::PlayerCpInfo_V4@> finishedPlayers;
+    uint[] finishedPlayerLoginIds;
 
     void ClearFinishedPlayers() {
         finishedPlayers.RemoveRange(0, finishedPlayers.Length);
+        finishedPlayerLoginIds.RemoveRange(0, finishedPlayerLoginIds.Length);
     }
 
-    bool HasPlayerFinished(const string &in login) {
-        return finishedPlayers.Find(login) >= 0;
+    void ClearFinishedPlayers_Delayed() {
+        yield();
+        ClearFinishedPlayers();
     }
 
-    void MarkPlayerFinished(const string &in login) {
-        if (HasPlayerFinished(login)) {
-            Dev_Notify("Player already finished: " + login);
-            return;
-        }
-        finishedPlayers.InsertLast(login);
+    bool HasPlayerFinished(uint loginIdVal) {
+        return finishedPlayerLoginIds.Find(loginIdVal) >= 0;
     }
 
     void Update() {
@@ -123,11 +122,20 @@ class RaceMonitor {
         auto rd = MLFeed::GetRaceData_V4();
         for (uint i = 0; i < rd.SortedPlayers_Race.Length; i++) {
             auto player = cast<MLFeed::PlayerCpInfo_V4>(rd.SortedPlayers_Race[i]);
-            if (player.IsSpawned && player.IsFinished && !HasPlayerFinished(player.Login)) {
-                MarkPlayerFinished(player.Login);
-                startnew(CoroutineFuncUserdata(SendPlayerFinish), player);
+            if (player.IsSpawned && player.IsFinished && !HasPlayerFinished(player.LoginMwId.Value)) {
+                AddPlayerFinish(player);
             }
         }
+    }
+
+    void AddPlayerFinish(const MLFeed::PlayerCpInfo_V4@ player) {
+        if (HasPlayerFinished(player.LoginMwId.Value)) {
+            Dev_Notify("Player already finished: " + player.Login);
+            return;
+        }
+        finishedPlayers.InsertLast(player);
+        finishedPlayerLoginIds.InsertLast(player.LoginMwId.Value);
+        startnew(CoroutineFuncUserdata(SendPlayerFinish), player);
     }
 
     void SendPlayerFinish(ref@ pref) {
@@ -159,7 +167,7 @@ class RaceMonitor {
             startnew(CoroutineFunc(SendOnRoundEnd));
         } else {
         }
-        ClearFinishedPlayers();
+        startnew(CoroutineFunc(ClearFinishedPlayers_Delayed));
         Dev_Notify("OnEndRound, prior: " + tostring(prior));
     }
 
@@ -196,11 +204,17 @@ class RaceMonitor {
     Json::Value@ GetRoundEndPayload() {
         auto rd = MLFeed::GetRaceData_V4();
         PlayerFinishData@[] players;
+        for (uint i = 0; i < finishedPlayers.Length; i++) {
+            auto player = finishedPlayers[i];
+            players.InsertLast(PlayerFinishData(player.WebServicesUserId, player.IsFinished ? player.LastCpTime : -1, i + 1));
+        }
+        auto nbFinished = players.Length;
         for (uint i = 0; i < rd.SortedPlayers_Race.Length; i++) {
             auto player = cast<MLFeed::PlayerCpInfo_V4>(rd.SortedPlayers_Race[i]);
             if (player.RequestsSpectate) continue;
             if (player.CpCount == 0) continue;
-            players.InsertLast(PlayerFinishData(player.WebServicesUserId, player.IsFinished ? player.LastCpTime : -1, i + 1));
+            if (finishedPlayerLoginIds.Find(player.LoginMwId.Value) >= 0) continue;
+            players.InsertLast(PlayerFinishData(player.WebServicesUserId, player.IsFinished ? player.LastCpTime : -1, ++nbFinished));
         }
         return MakeRoundEndPayload(players, currMap, currRound, mapUid);
     }
