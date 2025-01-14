@@ -2,7 +2,7 @@
 name     = "ECM Match Data"
 author   = "XertroV"
 category = "ECM"
-version  = "0.2.1"
+version  = "0.2.2"
 
 [script]
 #__DEFINES__
