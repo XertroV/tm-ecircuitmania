@@ -35,12 +35,16 @@ class RaceMonitor {
         KeepRunning = false;
     }
 
+    array<const MLFeed::PlayerCpInfo_V4@> startedPlayers;
+    uint[] startedPlayerLoginIds;
     array<const MLFeed::PlayerCpInfo_V4@> finishedPlayers;
     uint[] finishedPlayerLoginIds;
 
     void ClearFinishedPlayers() {
         finishedPlayers.RemoveRange(0, finishedPlayers.Length);
         finishedPlayerLoginIds.RemoveRange(0, finishedPlayerLoginIds.Length);
+        startedPlayers.RemoveRange(0, startedPlayers.Length);
+        startedPlayerLoginIds.RemoveRange(0, startedPlayerLoginIds.Length);
     }
 
     void ClearFinishedPlayers_Delayed() {
@@ -160,6 +164,24 @@ class RaceMonitor {
             currRound++;
         }
         Dev_Notify("OnGoingActive, prior: " + tostring(prior));
+        startnew(CoroutineFunc(CacheStartedPlayers_Delayed));
+    }
+
+    void CacheStartedPlayers_Delayed() {
+        auto start = Time::Now;
+        while (currState == RaceState::Active && Time::Now < start + 2000) {
+            yield();
+        }
+        if (currState != RaceState::Active) return;
+
+        auto rd = MLFeed::GetRaceData_V4();
+        for (uint i = 0; i < rd.SortedPlayers_Race.Length; i++) {
+            auto player = cast<MLFeed::PlayerCpInfo_V4>(rd.SortedPlayers_Race[i]);
+            if (startedPlayerLoginIds.Find(player.LoginMwId.Value) >= 0) continue;
+            if (player.SpawnStatus == MLFeed::SpawnStatus::NotSpawned) continue;
+            startedPlayers.InsertLast(player);
+            startedPlayerLoginIds.InsertLast(player.LoginMwId.Value);
+        }
     }
 
     void OnEndRound(RaceState prior) {
@@ -215,6 +237,15 @@ class RaceMonitor {
             if (player.CpCount == 0) continue;
             if (finishedPlayerLoginIds.Find(player.LoginMwId.Value) >= 0) continue;
             players.InsertLast(PlayerFinishData(player.WebServicesUserId, player.IsFinished ? player.LastCpTime : -1, ++nbFinished));
+            finishedPlayerLoginIds.InsertLast(player.LoginMwId.Value);
+        }
+        for (uint i = 0; i < startedPlayers.Length; i++) {
+            auto player = startedPlayers[i];
+            if (player.RequestsSpectate) continue;
+            if (player.CpCount == 0) continue;
+            if (finishedPlayerLoginIds.Find(player.LoginMwId.Value) >= 0) continue;
+            players.InsertLast(PlayerFinishData(player.WebServicesUserId, -1, ++nbFinished));
+            finishedPlayerLoginIds.InsertLast(player.LoginMwId.Value);
         }
         return MakeRoundEndPayload(players, currMap, currRound, mapUid);
     }
