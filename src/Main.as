@@ -13,7 +13,7 @@ UI::Texture@ logo;
 void Main() {
     yield();
     @logo = UI::LoadTexture("logo.png");
-    startnew(UpdateEarlyCoro).WithRunContext(Meta::RunContext::AfterScripts);
+    Meta::StartWithRunContext(Meta::RunContext::AfterScripts, UpdateEarlyCoro);
 }
 
 void UpdateEarlyCoro() {
