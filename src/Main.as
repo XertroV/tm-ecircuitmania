@@ -33,6 +33,11 @@ bool NewMapThisFrame = false;
 
 void UpdateEarly() {
     auto app = GetApp();
+    if (!IsInServer()) {
+        print("On menu, stopping monitoring.");
+        @g_monitor = null;
+    }
+
     IsEditor = app.Editor !is null;
     IsPgLoaded = !IsEditor && app.RootMap !is null && app.CurrentPlayground !is null;
 
@@ -156,7 +161,7 @@ void DrawNoMonitor() {
     UI::TextWrapped("If you are starting monitoring in the middle of a round, you can specify the current round and map number to start from. Otherwise, put 0 if it's before or during warmup on 1st map.");
     m_CurrRound = UI::InputInt("Current Round Number (0 for warmup)", m_CurrRound);
     m_CurrMap = UI::InputInt("Current Map Number (0 for 1st map)", m_CurrMap);
-    UI::BeginDisabled(!validMIdApiKeyInput);
+    UI::BeginDisabled(!validMIdApiKeyInput || !IsInServer());
     if (UI::Button("Start Monitoring")) {
         TryParseMIdApiKey();
         if (validMIdApiKeyInput) {
@@ -228,6 +233,12 @@ void NotifyWarningDebounce(const string &in msg, uint ms) {
         UI::ShowNotification(Meta::ExecutingPlugin().Name + ": Warning", msg, vec4(.9, .6, .2, .3), 15000);
         warnDebounce[msg] = Time::Now;
     }
+}
+
+bool IsInServer() {
+    CTrackManiaNetwork@ Network = cast<CTrackManiaNetwork>(GetApp().Network);
+    CGameCtnNetServerInfo@ ServerInfo = cast<CGameCtnNetServerInfo>(Network.ServerInfo);
+    return ServerInfo.JoinLink != "";
 }
 
 
