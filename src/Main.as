@@ -33,7 +33,7 @@ bool NewMapThisFrame = false;
 
 void UpdateEarly() {
     auto app = GetApp();
-    if (!IsInServer()) {
+    if (g_monitor !is null && !IsInServer()) {
         print("On menu, stopping monitoring.");
         @g_monitor = null;
     }
