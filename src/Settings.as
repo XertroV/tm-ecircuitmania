@@ -1,5 +1,9 @@
-[Setting name="Player Round Time URL"]
+bool IsDevMode() {
+    return Meta::IsDeveloperMode();
+}
+
+[Setting name="Player Round Time URL" if="IsDevMode"]
 string Setting_PlayerRoundTimesUrl = "https://us-central1-fantasy-trackmania.cloudfunctions.net/match-addRoundTime?matchId=";
 
-[Setting name="Player Round Full Data URL"]
+[Setting name="Player Round Full Data URL" if="IsDevMode"]
 string Setting_PlayerRoundFullDataUrl = "https://us-central1-fantasy-trackmania.cloudfunctions.net/match-addRound?matchId=";
