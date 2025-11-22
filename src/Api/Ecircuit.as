@@ -40,15 +40,12 @@ Json::Value@ MakeRoundEndPayload(array<PlayerFinishData@>@ players, int trackNum
     return payload;
 }
 
-const string URL_ADD_ROUND_TIME = "https://us-central1-fantasy-trackmania.cloudfunctions.net/match-addRoundTime?matchId=";
-const string URL_ADD_ROUND_FULL = "https://us-central1-fantasy-trackmania.cloudfunctions.net/match-addRound?matchId=";
-
 ECMResponse@ AddOnPlayerFinishReq(const string &in apiKey, const string &in matchId, const string &in payload) {
-    return MakeRequestEcircuit(apiKey, URL_ADD_ROUND_TIME + matchId, payload);
+    return MakeRequestEcircuit(apiKey, Setting_PlayerRoundTimesUrl + matchId, payload);
 }
 
 ECMResponse@ AddOnEndRoundReq(const string &in apiKey, const string &in matchId, const string &in payload) {
-    return MakeRequestEcircuit(apiKey, URL_ADD_ROUND_FULL + matchId, payload);
+    return MakeRequestEcircuit(apiKey, Setting_PlayerRoundFullDataUrl + matchId, payload);
 }
 
 
