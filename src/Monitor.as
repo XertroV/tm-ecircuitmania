@@ -139,6 +139,9 @@ class RaceMonitor {
 
     void SendPlayerFinish(ref@ pref) {
         MLFeed::PlayerCpInfo_V4@ player = cast<MLFeed::PlayerCpInfo_V4>(pref);
+        if (currRound == 0) {
+            return;
+        }
         PlayerFinishMsgs_Sent++;
         ECMResponse@ r = AddOnPlayerFinishReq(apiKey, matchId, Json::Write(MakePlayerFinishPayload(player.WebServicesUserId, player.IsFinished ? player.LastCpTime : -1, currRound, mapUid)));
         if (r.success) {
