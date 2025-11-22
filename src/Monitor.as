@@ -19,7 +19,6 @@ class RaceMonitor {
     string apiKey;
 
     RaceMonitor(const string &in matchId, const string &in apiKey) {
-        // startnew(CoroutineFunc(RunMonitor));
         this.matchId = matchId;
         this.apiKey = apiKey;
     }
@@ -154,6 +153,9 @@ class RaceMonitor {
     void OnGoingActive(RaceState prior) {
         ClearFinishedPlayers();
         if (prior != RaceState::Active) {
+            if (prior == RaceState::NoMap) {
+                currRound = 0;
+            }
             currRound++;
         }
         Dev_Notify("OnGoingActive, prior: " + tostring(prior));
