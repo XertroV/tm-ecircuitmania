@@ -13,16 +13,12 @@ enum RaceState {
 class RaceMonitor {
     uint lastMapMwId = uint(-1);
     int currRound = 0;
-    int currMap = 0;
     bool KeepRunning = true;
     RaceState currState = RaceState::NoMap;
     string matchId;
     string apiKey;
 
-    RaceMonitor(const string &in matchId, const string &in apiKey, int startRound = 0, int startMap = 0) {
-        // startnew(CoroutineFunc(RunMonitor));
-        currRound = startRound;
-        currMap = startMap;
+    RaceMonitor(const string &in matchId, const string &in apiKey) {
         this.matchId = matchId;
         this.apiKey = apiKey;
     }
@@ -69,7 +65,6 @@ class RaceMonitor {
 
     void OnNewMap() {
         ClearFinishedPlayers();
-        currMap++;
         currRound = 0;
     }
 
@@ -145,7 +140,7 @@ class RaceMonitor {
     void SendPlayerFinish(ref@ pref) {
         MLFeed::PlayerCpInfo_V4@ player = cast<MLFeed::PlayerCpInfo_V4>(pref);
         PlayerFinishMsgs_Sent++;
-        ECMResponse@ r = AddOnPlayerFinishReq(apiKey, matchId, Json::Write(MakePlayerFinishPayload(player.WebServicesUserId, player.IsFinished ? player.LastCpTime : -1, currMap, currRound, mapUid)));
+        ECMResponse@ r = AddOnPlayerFinishReq(apiKey, matchId, Json::Write(MakePlayerFinishPayload(player.WebServicesUserId, player.IsFinished ? player.LastCpTime : -1, currRound, mapUid)));
         if (r.success) {
             PlayerFinishMsgs_Succeeded++;
             lastSuccessMsg = r.message;
@@ -157,10 +152,10 @@ class RaceMonitor {
 
     void OnGoingActive(RaceState prior) {
         ClearFinishedPlayers();
-        if (prior == RaceState::NoMap) {
-            if (currMap == 0) currMap = 1;
-            if (currRound == 0) currRound = 1;
-        } else if (prior != RaceState::Active) {
+        if (prior != RaceState::Active) {
+            if (prior == RaceState::NoMap) {
+                currRound = 0;
+            }
             currRound++;
         }
         Dev_Notify("OnGoingActive, prior: " + tostring(prior));
@@ -247,14 +242,13 @@ class RaceMonitor {
             players.InsertLast(PlayerFinishData(player.WebServicesUserId, -1, ++nbFinished));
             finishedPlayerLoginIds.InsertLast(player.LoginMwId.Value);
         }
-        return MakeRoundEndPayload(players, currMap, currRound, mapUid);
+        return MakeRoundEndPayload(players, currRound, mapUid);
     }
 
 
     void DrawWindowInner() {
         UI::AlignTextToFramePadding();
         UI::Text("Running Monitor");
-        DrawRoundAndMap();
         UI::Separator();
         DrawCurrentState();
         UI::Separator();
@@ -266,6 +260,7 @@ class RaceMonitor {
     }
 
     void DrawRequestsInfo() {
+        UI::Text("Current Round: " + currRound);
         UI::Text("RoundEnd Messages Sent: " + RoundEndMsgs_Sent);
         UI::Text("RoundEnd Messages Succeeded: " + RoundEndMsgs_Succeeded);
         UI::Text("RoundEnd Messages Failed: " + RoundEndMsgs_Failed);
@@ -281,34 +276,8 @@ class RaceMonitor {
         UI::AlignTextToFramePadding();
         UI::Text("Current State: " + tostring(currState));
         UI::AlignTextToFramePadding();
-        UI::Text("ECM Match ID: " + matchId);
+        UI::Text("ECM ID: " + matchId);
         DrawStopMonitoringButton();
-    }
-
-    void DrawRoundAndMap() {
-        UI::AlignTextToFramePadding();
-        UI::Text("Round: " + currRound);
-        UI::SameLine();
-        UI::SetCursorPos(vec2(140, UI::GetCursorPos().y));
-        if (UI::Button(Icons::Minus + " 1##subround")) {
-            currRound--;
-        }
-        UI::SameLine();
-        if (UI::Button(Icons::Plus + " 1##addround")) {
-            currRound++;
-        }
-
-        UI::AlignTextToFramePadding();
-        UI::Text("Map: " + currMap);
-        UI::SameLine();
-        UI::SetCursorPos(vec2(140, UI::GetCursorPos().y));
-        if (UI::Button(Icons::Minus + " 1##submap")) {
-            currMap--;
-        }
-        UI::SameLine();
-        if (UI::Button(Icons::Plus + " 1##addmap")) {
-            currMap++;
-        }
     }
 }
 

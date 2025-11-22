@@ -1,8 +1,7 @@
-Json::Value@ MakePlayerFinishPayload(const string &in wsid, int finishTime, int trackNum, int roundNum, const string &in mapUid) {
+Json::Value@ MakePlayerFinishPayload(const string &in wsid, int finishTime, int roundNum, const string &in mapUid) {
     Json::Value@ payload = Json::Object();
     payload["ubisoftUid"] = wsid;
     payload["finishTime"] = finishTime;
-    payload["trackNum"] = trackNum;
     payload["roundNum"] = roundNum;
     payload["mapId"] = mapUid;
     payload["timestamp"] = Time::Stamp;
@@ -20,8 +19,7 @@ class PlayerFinishData {
     }
 }
 
-// for cup send -1 for trackNum b/c no reliable source. for rounds send the trackNum from parsing
-Json::Value@ MakeRoundEndPayload(array<PlayerFinishData@>@ players, int trackNum, int roundNum, const string &in mapUid) {
+Json::Value@ MakeRoundEndPayload(array<PlayerFinishData@>@ players, int roundNum, const string &in mapUid) {
     Json::Value@ payload = Json::Object();
     Json::Value@ playersArray = Json::Array();
     for (uint i = 0; i < players.Length; i++) {
@@ -32,8 +30,6 @@ Json::Value@ MakeRoundEndPayload(array<PlayerFinishData@>@ players, int trackNum
         playersArray.Add(player);
     }
     payload["players"] = playersArray;
-    payload["trackNum"] = trackNum;
-    // payload["trackNum"] = -1;
     payload["roundNum"] = roundNum;
     payload["mapId"] = mapUid;
     payload["timestamp"] = Time::Stamp;

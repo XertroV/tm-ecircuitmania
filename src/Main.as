@@ -128,20 +128,18 @@ void DrawStopMonitoringButton() {
     }
 }
 
-int m_CurrRound = 0;
-int m_CurrMap = 0;
 string m_matchId_apiKey;
 string matchId;
 string apiKey;
 bool validMIdApiKeyInput = false;
-string midApiKeyError = "Empty Input. Please paste Match ID & API Key";
+string midApiKeyError = "Empty Input. Please paste API Key";
 string last_matchId_apiKey;
 
 void DrawNoMonitor() {
     UI::Text("Not currently monitoring.");
     UI::Separator();
     bool changed;
-    m_matchId_apiKey = UI::InputText("Paste Match ID & API Key", m_matchId_apiKey, changed, UI::InputTextFlags::Password);
+    m_matchId_apiKey = UI::InputText("Paste API Key", m_matchId_apiKey, changed, UI::InputTextFlags::Password);
     bool useLast = false;
     if (last_matchId_apiKey.Length > 0) {
         UI::SameLine();
@@ -158,16 +156,11 @@ void DrawNoMonitor() {
         UI::TextWrapped("\\$f80 " + Icons::ExclamationTriangle + "\\$z " + midApiKeyError);
     }
     UI::Separator();
-    UI::TextWrapped("If you are starting monitoring in the middle of a round, you can specify the current round and map number to start from. Otherwise, put 0 if it's before or during warmup on 1st map.");
-    m_CurrRound = UI::InputInt("Current Round Number (0 for warmup)", m_CurrRound);
-    m_CurrMap = UI::InputInt("Current Map Number (0 for 1st map)", m_CurrMap);
     UI::BeginDisabled(!validMIdApiKeyInput || !IsInServer());
     if (UI::Button("Start Monitoring")) {
         TryParseMIdApiKey();
         if (validMIdApiKeyInput) {
-            @g_monitor = RaceMonitor(matchId, apiKey, m_CurrRound, m_CurrMap);
-            m_CurrRound = 0;
-            m_CurrMap = 0;
+            @g_monitor = RaceMonitor(matchId, apiKey);
             last_matchId_apiKey = m_matchId_apiKey;
             m_matchId_apiKey = "";
             TryParseMIdApiKey();
