@@ -116,6 +116,8 @@ class RaceMonitor {
     }
 
     uint lastWentActive;
+    uint activeStartTime = 0;
+    
     void UpdateActive() {
         lastWentActive = Time::Now;
         auto rd = MLFeed::GetRaceData_V4();
@@ -130,6 +132,15 @@ class RaceMonitor {
     void AddPlayerFinish(const MLFeed::PlayerCpInfo_V4@ player) {
         if (HasPlayerFinished(player.LoginMwId.Value)) {
             Dev_Notify("Player already finished: " + player.Login);
+            return;
+        }
+        // Ignore players who spawned before we went active (warmup players)
+        if (player.StartTime < activeStartTime) {
+            Dev_Notify("Player spawned during warmup, ignoring: " + player.Login);
+            return;
+        }
+        // Don't capture player data during warmup (round 0)
+        if (currRound == 0) {
             return;
         }
         finishedPlayers.InsertLast(player);
@@ -151,12 +162,13 @@ class RaceMonitor {
     }
 
     void OnGoingActive(RaceState prior) {
-        ClearFinishedPlayers();
         if (prior != RaceState::Active) {
             if (prior == RaceState::NoMap) {
                 currRound = 0;
             }
             currRound++;
+            // Record when we went active to filter out warmup spawns
+            activeStartTime = MLFeed::GameTime;
         }
         Dev_Notify("OnGoingActive, prior: " + tostring(prior));
         startnew(CoroutineFunc(CacheStartedPlayers_Delayed));
