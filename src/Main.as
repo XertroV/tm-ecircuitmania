@@ -12,7 +12,7 @@ UI::Texture@ logo;
 
 void Main() {
     yield();
-    @logo = UI::LoadTexture("logo.png");
+    @logo = UI::LoadTexture("src/logo.png");
     Meta::StartWithRunContext(Meta::RunContext::AfterScripts, UpdateEarlyCoro);
 }
 
