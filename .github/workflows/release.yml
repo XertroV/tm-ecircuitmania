@@ -19,7 +19,7 @@ jobs:
       - name: Extract version from info.toml
         id: get_version
         run: |
-          VERSION=$(grep '^version = ' info.toml | sed 's/version = "\(.*\)"/\1/')
+          VERSION=$(grep '^version' info.toml | sed 's/version[[:space:]]*=[[:space:]]*"\(.*\)"/\1/')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
       
